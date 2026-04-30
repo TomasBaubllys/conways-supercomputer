@@ -154,7 +154,6 @@ int main(int argc, char* argv[]) {
     uint8_t* top_ghost = calloc(bytes_per_row, sizeof(uint8_t));
     uint8_t* my_bottom_row = NULL;
     uint8_t* bottom_ghost = calloc(bytes_per_row, sizeof(uint8_t));
-    uint8_t* zeros = calloc(bytes_per_row, sizeof(uint8_t));
 
     uint8_t* recv_buff = NULL;
     if(verbose && rank == 0) {
@@ -261,6 +260,9 @@ int main(int argc, char* argv[]) {
     delete_conways(&game_of_life);
     free(top_ghost);
     free(bottom_ghost);
+    if(rank == 0 && recv_buff) {
+        free(recv_buff);
+    }
     MPI_Finalize();
     return 0;
 }
