@@ -16,14 +16,24 @@ mpirun -n 4 parallel_game_of_life -c798 -r1000 -v -sf_test.txt
 ```
 
 ### Program flags
--v      Prints each epoch with a delay to stdout
--r      Number of rows for the grid
--c      Number of columns for the grid must be (c+2)mod8 === 0
--t      Threads per node (1 or not provided equals single thread)
--bs     Used with -t flag to provide block size per thread
--ap     When initializing a random grid provides the probability for a cell to be alive
--e      Number of epochs to run for
--sf_    File to save to the final result
--lf_    File to load from
--h      Displays this message
+-v      Prints each epoch with a delay to stdout  
+
+-r      Number of rows for the grid  
+
+-c      Number of columns for the grid must be (c+2)mod8 === 0  
+
+-t      Threads per node (1 or not provided equals single thread)  
+
+-bs     Used with -t flag to provide block size per thread  
+
+-ap     When initializing a random grid provides the probability for a cell to be alive  
+
+-e      Number of epochs to run for  
+
+-sf_    File to save to the final result  
+
+-lf_    File to load from  
+
+-h      Displays this message  
+
 
