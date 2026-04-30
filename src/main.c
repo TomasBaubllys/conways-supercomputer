@@ -21,6 +21,8 @@ int main(int argc, char* argv[]) {
     size_t cols = 0;
     float alive_prob = 0.2;
     size_t num_epochs = 10;
+    char* savefile = NULL;
+    char* loadfile = NULL;
 
     /*
     OpenMP variables, used for multthreading per node
@@ -36,11 +38,11 @@ int main(int argc, char* argv[]) {
         }
         
         if(strncmp(argv[i], "-r", 2) == 0) {
-            sscanf(argv[i] + 2, "%lu", &rows);
+            sscanf(argv[i] + 2, "%zu", &rows);
         }
 
         if(strncmp(argv[i], "-c", 2) == 0) {
-            sscanf(argv[i] + 2, "%lu", &cols);
+            sscanf(argv[i] + 2, "%zu", &cols);
         }
 
         if(strncmp(argv[i], "-t", 2) == 0) {
@@ -56,19 +58,43 @@ int main(int argc, char* argv[]) {
         }
 
         if(strncmp(argv[i], "-e", 2) == 0) {
-            sscanf(argv[i] + 2, "%lu", &num_epochs);
+            sscanf(argv[i] + 2, "%zu", &num_epochs);
         }
+
+        if(strncmp(argv[i], "-sf_", 4) == 0) {
+            savefile = argv[i] + 4;
+        }
+
+        if(strncmp(argv[i], "-lf_", 4) == 0) {
+            loadfile = argv[i] + 4;
+        }
+    }
+
+    // printf("%lu, %lu, %u", rows, cols, t_per_node);
+    MPI_Status status;
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
+
+    // do the initial reading of the files
+    FILE* fptr = NULL;
+    if(loadfile) {
+        if(rank == 0) {
+            fptr = fopen(loadfile, "r");
+            if(!fptr) {
+                return -1;
+            }
+            fscanf(fptr, "%zu %zu %f", &rows, &cols, &alive_prob);
+        }
+        MPI_Bcast(&rows, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&cols, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD);
+        MPI_Bcast(&alive_prob, 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
     }
 
     // blocksize must be alligned to 8 bytes for bit packing to work
     assert((bs_size % 8) == 0);
     // columns + 2 must be alligned to 8 bytes for bit packing to work (the grid is padded with 2 columns)
     assert(((cols + 2) % 8) == 0);
-
-    // printf("%lu, %lu, %u", rows, cols, t_per_node);
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &num_nodes);
 
     srand(rank);
     size_t rows_per_rank = rows / num_nodes;
@@ -86,13 +112,49 @@ int main(int argc, char* argv[]) {
     Parallel_Conways pgame_of_life;
     init_parallel_conways(&pgame_of_life, &game_of_life, bs_size);
 
+    // finnish reading the file
+    if(loadfile) {
+        if(rank == 0) {
+            uint8_t* buff = calloc(game_of_life.total_buff_size, sizeof(uint8_t));
+            if(!buff) {
+                return -1;
+            }
+            for(uint32_t r = 0; r < num_nodes; ++r) {
+                
+                memset(buff, 0, game_of_life.total_buff_size);
+                
+                for(size_t i = 0; i < rows_per_rank; ++i) {
+                    for(size_t j = 0; j < cols; ++j) {
+                        uint8_t state = 0;
+                        fscanf(fptr, "%hhu", &state);
+                        size_t idx = (i + 1) * (cols + 2) + (j + 1);
+                        size_t byte = idx >> 3;
+                        size_t bit = idx & 7;
+                        if(state) {
+                            buff[byte] |= (1 << bit);
+                        }
+                    }
+                }
+                if(r == 0) {
+                    memcpy(game_of_life.cells, buff, game_of_life.total_buff_size);
+                }
+                else {
+                    MPI_Send(buff, game_of_life.total_buff_size, MPI_UINT8_T, r, 1, MPI_COMM_WORLD);
+                }
+            }
+            fclose(fptr);
+            free(buff);
+        }
+        else {
+            MPI_Recv(game_of_life.cells, game_of_life.total_buff_size, MPI_UINT8_T, 0, 1, MPI_COMM_WORLD, &status);
+        }
+    }
+
     uint8_t* my_top_row = NULL;
     uint8_t* top_ghost = calloc(bytes_per_row, sizeof(uint8_t));
     uint8_t* my_bottom_row = NULL;
     uint8_t* bottom_ghost = calloc(bytes_per_row, sizeof(uint8_t));
     uint8_t* zeros = calloc(bytes_per_row, sizeof(uint8_t));
-
-    MPI_Status status;
 
     uint8_t* recv_buff = NULL;
     if(verbose && rank == 0) {
@@ -120,11 +182,6 @@ int main(int argc, char* argv[]) {
             MPI_COMM_WORLD, &status);
             update_ghost_top(&game_of_life, top_ghost);
         }
-        /*
-        else {
-            update_ghost_top(&game_of_life, zeros);
-        }
-        */
 
         if(rank != num_nodes - 1) {
             // send my bottom row to the next node 
@@ -134,11 +191,6 @@ int main(int argc, char* argv[]) {
             MPI_COMM_WORLD, &status);
             update_ghost_bottom(&game_of_life, bottom_ghost);
         }
-        /*
-        else {
-            // update_ghost_bottom(&game_of_life, zeros);
-        }
-        */
         
         // only the main proccess draws
         if(verbose) {
@@ -172,6 +224,37 @@ int main(int argc, char* argv[]) {
         }
         else {
             update_conways(&game_of_life);
+        }
+    }
+
+    if(savefile) {
+         if(rank == 0) {
+            FILE* fptr = fopen(savefile, "w");
+            if(!fptr) {
+                return -1;
+            }
+
+            fprintf(fptr, "%zu %zu %f\n", rows, cols, alive_prob);
+
+            // skip over the ghost row  
+            for(size_t j = bytes_per_row; j < game_of_life.total_buff_size - bytes_per_row; j += bytes_per_row) {
+                fdraw_stripe_binary(game_of_life.cells + j, cols, fptr);
+            }
+            for(int r = 1; r < num_nodes; ++r) {
+                MPI_Recv(recv_buff, game_of_life.total_buff_size, MPI_UINT8_T, r, 0, MPI_COMM_WORLD, &status);
+                int recv_bytes = 0;
+                MPI_Get_count(&status, MPI_UINT8_T, &recv_bytes);
+                // skip over the ghost row
+                // and not print the bottom ghost row
+                for(size_t j = bytes_per_row; j < recv_bytes - bytes_per_row; j += bytes_per_row) {
+                    fdraw_stripe_binary(recv_buff + j, cols, fptr);
+                }
+            }
+            
+            fclose(fptr);
+        }
+        else {
+            MPI_Send(game_of_life.cells, game_of_life.total_buff_size, MPI_UINT8_T, 0, 0, MPI_COMM_WORLD);
         }
     }
 

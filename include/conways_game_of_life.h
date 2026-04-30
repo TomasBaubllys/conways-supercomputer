@@ -18,6 +18,7 @@ typedef struct Conways {
   uint8_t* cells; // stores cells in groups by 8
   uint8_t* next_cells;
   size_t total_buff_size;
+  float alive_prob;
 } Conways;
 
 // inits conways struct
@@ -28,9 +29,9 @@ int draw_conways(Conways* game_of_life);
 
 int fdraw_conways(Conways* game_of_life, FILE* restrict out_desc);
 
-int load_conway_from_file(const char* filename);
+int load_conway_from_file(Conways* game_of_life, const char* filename);
 
-int save_conway_to_file(const char* filename);
+int save_conway_to_file(Conways* game_of_life, const char* filename);
 
 // plays a single round, returns how many cells are left alive
 int update_conways(Conways* game_of_life);
@@ -58,5 +59,9 @@ int update_ghost_top(Conways* game_of_life, uint8_t* ghost_row);
 int update_ghost_bottom(Conways* game_of_life, uint8_t* ghost_row);
 
 void draw_stripe(uint8_t* row, size_t cols);
+
+int fdraw_stripe_binary(uint8_t* row, size_t cols, FILE* restrict stream);
+
+int fread_stripe_binary(uint8_t* row_buff, size_t cols, FILE* restrict stream);
 
 #endif // CONWAYS_GAME_OF_LIFE_H_INCLUDED

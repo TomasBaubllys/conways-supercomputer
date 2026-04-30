@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "../include/utils.h"
 #include <string.h>
+#include <assert.h>
 
 int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float alive_prob) {
     if(!game_of_life) {
@@ -11,6 +12,7 @@ int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float aliv
 
     game_of_life->rows = rows;
     game_of_life->collumns = collumns;
+    game_of_life->alive_prob = alive_prob;
     game_of_life->total_buff_size = (((rows + 2) * (collumns + 2) + 7) / 8);
     game_of_life->cells = (uint8_t*)calloc(game_of_life->total_buff_size, sizeof(uint8_t));
     game_of_life->next_cells = (uint8_t*)calloc(game_of_life->total_buff_size, sizeof(uint8_t));
@@ -255,10 +257,98 @@ void draw_stripe(uint8_t* row, size_t cols) {
 }
 
 
-int load_conway_from_file(const char* filename) {
+int load_conway_from_file(Conways* game_of_life, const char* filename) {
+    if(!game_of_life || !filename) {
+        return -1;
+    }
+
+    FILE* fptr = fopen(filename, "r");
+    if(!fptr) {
+        return -1;
+    }
+
+    // read the num of rows and cols
+    size_t rows = 0;
+    size_t cols = 0;
+    float alive_prob = 0.2;
+    if(fscanf(fptr, "%zu %zu %f", &rows, &cols, &alive_prob) != 3) {
+        fclose(fptr);
+        return -1;
+    };
+
+    assert((cols + 2) % 8 == 0);
+
+    init_conways(game_of_life, rows, cols, alive_prob);
+    for(size_t i = 0; i < rows; ++i) {
+        for(size_t j = 0; j < cols; ++j) {
+            uint8_t state = 0;
+            if(fscanf(fptr, "%hhu", &state) != 1) {
+                fclose(fptr);
+                return -1;
+            }
+
+            size_t idx = (i + 1) * (cols + 2) + (j + 1);
+            size_t byte = idx >> 3;
+            size_t bit = idx & 7;
+            game_of_life->cells[byte] |= (state) << bit;
+        }
+    }
+
+    fclose(fptr);
     return 0;
 }
 
-int save_conway_to_file(const char* filename) {
+int save_conway_to_file(Conways* game_of_life, const char* filename) {
+    if(!game_of_life || !game_of_life->cells || !filename) {
+        return -1;
+    }
+
+    FILE* fptr = fopen(filename, "w");
+    if(!fptr) {
+        return -1;
+    }
+
+    fprintf(fptr, "%zu %zu %f\n", game_of_life->rows, game_of_life->collumns, game_of_life->alive_prob);
+    for(size_t i = 0; i < game_of_life->rows; ++i) {
+        for(size_t j = 0; j < game_of_life->collumns; ++j) {
+            fprintf(fptr, "%hhu ", get_cell_state(game_of_life, i, j));
+        }
+
+        fputc('\n', fptr);
+    }
+
+    fclose(fptr);
     return 0;
 }
+
+int fdraw_stripe_binary(uint8_t* row, size_t cols, FILE* restrict stream) {
+    if(!stream || !row) {
+        return -1;
+    }
+
+    for(size_t i = 0; i < cols; ++i) {
+        size_t idx = i + 1;
+        size_t byte = idx >> 3;
+        size_t bit = idx & 7;
+        fprintf(stream, "%hhu ", (row[byte] & (1 << bit)) ? 1 : 0);
+    }
+    fputc('\n', stream);
+    return 0;
+}
+
+int fread_stripe_binary(uint8_t* row_buff, size_t cols, FILE* restrict stream) {
+    if(!stream || !row_buff) {
+        return -1;
+    }
+    for(size_t i = 0; i < cols; ++i) {
+        size_t idx = i + 1;
+        size_t byte = idx >> 3;
+        size_t bit = idx & 7;
+        uint8_t state = 0;
+        fscanf(stream, "%hhu", &state);
+        row_buff[byte] |= (state << bit);
+    }
+
+    return cols;
+}
+
