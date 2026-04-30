@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     size_t bytes_per_row = (cols + 2) / 8;
 
     // if threads per process flag was passed
-    if(t_per_node) {
+    if(t_per_node > 1) {
         omp_set_num_threads(t_per_node);
     }
     
@@ -163,6 +163,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    time_t start = time(NULL);
     for(int i = 0; i < num_epochs; ++i) {
         my_top_row = get_row_ptr(&game_of_life, 0);
         if(!my_top_row) {
@@ -224,6 +225,11 @@ int main(int argc, char* argv[]) {
         else {
             update_conways(&game_of_life);
         }
+    }
+    // print the time elapse;
+    time_t end = time(NULL);
+    if(rank == 0) {
+        printf("%f\n", difftime(end, start));
     }
 
     if(savefile) {
