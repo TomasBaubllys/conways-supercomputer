@@ -87,9 +87,9 @@ int main(int argc, char* argv[]) {
     init_parallel_conways(&pgame_of_life, &game_of_life, bs_size);
 
     uint8_t* my_top_row = NULL;
-    uint8_t* top_ghost = malloc(bytes_per_row);
+    uint8_t* top_ghost = calloc(bytes_per_row, sizeof(uint8_t));
     uint8_t* my_bottom_row = NULL;
-    uint8_t* bottom_ghost = malloc(bytes_per_row);
+    uint8_t* bottom_ghost = calloc(bytes_per_row, sizeof(uint8_t));
     uint8_t* zeros = calloc(bytes_per_row, sizeof(uint8_t));
 
     MPI_Status status;

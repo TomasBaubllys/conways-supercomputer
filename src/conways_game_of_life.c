@@ -29,7 +29,7 @@ int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float aliv
             size_t idx = (i + 1) * (collumns + 2) + (j + 1);
             size_t byte = idx / 8;
             size_t bit = idx % 8;
-            game_of_life->cells[byte] |= (((rand() / (double)RAND_MAX) < alive_prob) << bit);
+            game_of_life->cells[byte] |= (((rand() / (double)RAND_MAX) < alive_prob? 1 : 0) << bit);
         }
     }
 
@@ -167,6 +167,8 @@ uint8_t unsafe_get_cell_state(const Conways* game_of_life, const int row, const 
     size_t byte = idx >> 3;
     size_t bit = idx & 7;
 
+    // printf("%d, %d, %lu, %lu, %lu\n", row, collumn, idx, byte, bit);
+
     return (game_of_life->cells[byte] >> bit) & 1;
 }
 
@@ -178,14 +180,15 @@ int unsafe_update_block(Conways* game_of_life, size_t start_row, size_t start_co
     size_t end_col;
     size_t end_row;
 
-    if(start_col >= game_of_life->collumns - size_col) {
+    if(start_col + size_col >= game_of_life->collumns) {
         end_col = game_of_life->collumns;
     }
     else {
         end_col = start_col + size_col;
     }
 
-    if(start_row >= game_of_life->rows - size_row) {
+    // top 5 legendary bugs were here
+    if(start_row + size_row >= game_of_life->rows) {
         end_row = game_of_life->rows;
     }
     else {
