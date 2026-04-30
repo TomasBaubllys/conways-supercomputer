@@ -18,7 +18,7 @@ int update_parallel_conways(Parallel_Conways* pgame_of_life) {
     
     #pragma omp parallel for collapse(2) 
     for(size_t i = 0; i < pgame_of_life->game_of_life->rows; i += pgame_of_life->block_size) {
-        for(size_t j = 0; j < pgame_of_life->game_of_life->collumns; j += pgame_of_life->block_size) {
+        for(size_t j = 0; j < pgame_of_life->game_of_life->columns; j += pgame_of_life->block_size) {
             //printf("Hello from %d\n", omp_get_thread_num());
             unsafe_update_block(pgame_of_life->game_of_life, i, j, pgame_of_life->block_size, pgame_of_life->block_size);
         }

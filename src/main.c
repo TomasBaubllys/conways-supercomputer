@@ -11,6 +11,19 @@
 #include "../include/utils.h"
 #include "../include/parallel_game_of_life.h"
 
+#define HELP_MSG "-v      Prints each epoch with a delay to stdout\n" \
+                   "-r      Number of rows for the grid\n" \
+                   "-c      Number of columns for the grid must be (c+2)mod8 === 0\n" \
+                   "-t      Threads per node (1 or not provided equals single thread)\n" \
+                   "-bs     Used with -t flag to provide block size per thread\n" \
+                   "-ap     When initializing a random grid provides the probability for a cell to be alive\n" \
+                   "-e      Number of epochs to run for\n" \
+                   "-sf_    File to save to the final result\n" \
+                   "-lf_    File to load from\n" \
+                   "-h      Displays this message\n" \
+                   "\nExample (no mpi): ./parallel_game_of_life -c30 -r100 -lf_test.txt -t4 -bs4\n" \
+                   "Example2: mpirun -n 4 parallel_game_of_life -c798 -r1000 -v -sf_test.txt\n"
+
 int main(int argc, char* argv[]) {    
     // rank of the current node
     int rank;
@@ -30,6 +43,10 @@ int main(int argc, char* argv[]) {
     // threads per node
     uint32_t t_per_node = 1;
     uint32_t bs_size = 64;
+
+    if(argc == 1) {
+        printf(HELP_MSG);
+    }
 
     // handle command line args
     for(int i = 0; i < argc; ++i) {
@@ -68,6 +85,12 @@ int main(int argc, char* argv[]) {
         if(strncmp(argv[i], "-lf_", 4) == 0) {
             loadfile = argv[i] + 4;
         }
+
+        if(strcmp(argv[i], "-h") == 0) {
+            printf(HELP_MSG);
+
+            return 0;
+        }
     }
 
     // printf("%lu, %lu, %u", rows, cols, t_per_node);
@@ -92,9 +115,33 @@ int main(int argc, char* argv[]) {
     }
 
     // blocksize must be alligned to 8 bytes for bit packing to work
-    assert((bs_size % 8) == 0);
+    //assert((bs_size % 8) == 0);
+    if(bs_size % 8 != 0) {
+        size_t bsdiff = 8 - bs_size % 8;
+        if(rank == 0) {
+            printf("Warning! block size will be increased by %d\n", bsdiff);
+        }
+        bs_size += bsdiff;
+    }
+
     // columns + 2 must be alligned to 8 bytes for bit packing to work (the grid is padded with 2 columns)
-    assert(((cols + 2) % 8) == 0);
+    // assert(((cols + 2) % 8) == 0);
+    if((cols + 2) % 8 != 0) {
+        size_t cdiff = 8 - (cols + 2) % 8;
+        if(rank == 0) {
+            printf("Warning! %d columns will be added\n", cdiff);
+        }
+        cols += cdiff;
+    }
+    
+    if(rows % num_nodes != 0) {
+        if(rank == 0) {
+            printf("Warning! %d rows will be added\n", num_nodes - (rows % num_nodes));
+        }
+        if(rows < num_nodes) {
+            rows = num_nodes;
+        }
+    }
 
     srand(rank);
     size_t rows_per_rank = rows / num_nodes;

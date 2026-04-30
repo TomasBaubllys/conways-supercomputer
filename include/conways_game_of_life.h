@@ -14,7 +14,7 @@
 
 typedef struct Conways {
   size_t rows;
-  size_t collumns;
+  size_t columns;
   uint8_t* cells; // stores cells in groups by 8
   uint8_t* next_cells;
   size_t total_buff_size;
@@ -22,7 +22,7 @@ typedef struct Conways {
 } Conways;
 
 // inits conways struct
-int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float alive_prob);
+int init_conways(Conways* game_of_life, size_t rows, size_t columns, float alive_prob);
 
 // draws the current state on the screen
 int draw_conways(Conways* game_of_life);

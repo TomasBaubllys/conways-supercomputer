@@ -5,15 +5,15 @@
 #include <string.h>
 #include <assert.h>
 
-int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float alive_prob) {
+int init_conways(Conways* game_of_life, size_t rows, size_t columns, float alive_prob) {
     if(!game_of_life) {
         return -1;
     }
 
     game_of_life->rows = rows;
-    game_of_life->collumns = collumns;
+    game_of_life->columns = columns;
     game_of_life->alive_prob = alive_prob;
-    game_of_life->total_buff_size = (((rows + 2) * (collumns + 2) + 7) / 8);
+    game_of_life->total_buff_size = (((rows + 2) * (columns + 2) + 7) / 8);
     game_of_life->cells = (uint8_t*)calloc(game_of_life->total_buff_size, sizeof(uint8_t));
     game_of_life->next_cells = (uint8_t*)calloc(game_of_life->total_buff_size, sizeof(uint8_t));
     if(!game_of_life->cells) {
@@ -27,8 +27,8 @@ int init_conways(Conways* game_of_life, size_t rows, size_t collumns, float aliv
 
     // fill with given prob
     for(size_t i = rows; i-- > 0;) {
-        for(size_t j = collumns; j-- > 0;) {
-            size_t idx = (i + 1) * (collumns + 2) + (j + 1);
+        for(size_t j = columns; j-- > 0;) {
+            size_t idx = (i + 1) * (columns + 2) + (j + 1);
             size_t byte = idx / 8;
             size_t bit = idx % 8;
             game_of_life->cells[byte] |= (((rand() / (double)RAND_MAX) < alive_prob? 1 : 0) << bit);
@@ -54,7 +54,7 @@ int fdraw_conways(Conways* game_of_life, FILE* restrict out_desc) {
     }
 
     for(uint64_t i = 0; i < game_of_life->rows; ++i) {
-        for(uint64_t j = 0; j < game_of_life->collumns; ++j) {
+        for(uint64_t j = 0; j < game_of_life->columns; ++j) {
             if(buff_size >= OUTPUT_BUFF_SIZE) {
                 fwrite(print_buff, 1, buff_size, out_desc);
                 buff_size = 0;
@@ -90,7 +90,7 @@ void unsafe_update_cell(const Conways* game_of_life, const size_t row, const siz
             neighbour_cnt += unsafe_get_cell_state(game_of_life, ny, nx);
         }
     }
-    size_t idx = (row + 1) * (game_of_life->collumns + 2) + (collumn + 1);
+    size_t idx = (row + 1) * (game_of_life->columns + 2) + (collumn + 1);
     size_t byte = idx >> 3;
     size_t bit = idx & 7;
     if(unsafe_get_cell_state(game_of_life, row, collumn)) {
@@ -119,7 +119,7 @@ int update_conways(Conways* game_of_life) {
     }
 
     for(size_t i = game_of_life->rows; i-- > 0;) {
-        for(size_t j = game_of_life->collumns; j-- > 0;) {
+        for(size_t j = game_of_life->columns; j-- > 0;) {
             unsafe_update_cell(game_of_life, i, j);
         }
     }
@@ -153,11 +153,11 @@ uint8_t get_cell_state(const Conways* game_of_life, const size_t row, const size
         return 0xFF;
     }
 
-    if(row >= game_of_life->rows || column >= game_of_life->collumns) {
+    if(row >= game_of_life->rows || column >= game_of_life->columns) {
         return 0xFF;
     }
 
-    size_t idx = (row + 1) * (game_of_life->collumns + 2) + (column + 1);
+    size_t idx = (row + 1) * (game_of_life->columns + 2) + (column + 1);
     size_t byte = idx >> 3;
     size_t bit = idx & 7;
 
@@ -165,7 +165,7 @@ uint8_t get_cell_state(const Conways* game_of_life, const size_t row, const size
 }
 
 uint8_t unsafe_get_cell_state(const Conways* game_of_life, const int row, const int collumn) {
-    size_t idx = (row + 1) * (game_of_life->collumns + 2) + (collumn + 1);
+    size_t idx = (row + 1) * (game_of_life->columns + 2) + (collumn + 1);
     size_t byte = idx >> 3;
     size_t bit = idx & 7;
 
@@ -182,8 +182,8 @@ int unsafe_update_block(Conways* game_of_life, size_t start_row, size_t start_co
     size_t end_col;
     size_t end_row;
 
-    if(start_col + size_col >= game_of_life->collumns) {
-        end_col = game_of_life->collumns;
+    if(start_col + size_col >= game_of_life->columns) {
+        end_col = game_of_life->columns;
     }
     else {
         end_col = start_col + size_col;
@@ -216,7 +216,7 @@ uint8_t* get_row_ptr(Conways* game_of_life, size_t row) {
     }
 
     // account for inner padding
-    size_t byte = (row + 1) * (game_of_life->collumns + 2) / 8;
+    size_t byte = (row + 1) * (game_of_life->columns + 2) / 8;
     return game_of_life->cells + byte;
 }
 
@@ -226,7 +226,7 @@ int update_ghost_top(Conways* game_of_life, uint8_t* ghost_row) {
     }
 
     // beggining of the array points to the ghost top row
-    memcpy(game_of_life->cells, ghost_row, (game_of_life->collumns + 2) / 8);
+    memcpy(game_of_life->cells, ghost_row, (game_of_life->columns + 2) / 8);
     return 0;
 }
 
@@ -236,8 +236,8 @@ int update_ghost_bottom(Conways* game_of_life, uint8_t* ghost_row) {
     }
 
     // beggining of the array points to the ghost top row
-    size_t offset = (game_of_life->rows + 1) * ((game_of_life->collumns + 2) / 8);
-    memcpy(game_of_life->cells + offset, ghost_row, (game_of_life->collumns + 2) / 8);
+    size_t offset = (game_of_life->rows + 1) * ((game_of_life->columns + 2) / 8);
+    memcpy(game_of_life->cells + offset, ghost_row, (game_of_life->columns + 2) / 8);
     return 0;
 }
 
@@ -308,9 +308,9 @@ int save_conway_to_file(Conways* game_of_life, const char* filename) {
         return -1;
     }
 
-    fprintf(fptr, "%zu %zu %f\n", game_of_life->rows, game_of_life->collumns, game_of_life->alive_prob);
+    fprintf(fptr, "%zu %zu %f\n", game_of_life->rows, game_of_life->columns, game_of_life->alive_prob);
     for(size_t i = 0; i < game_of_life->rows; ++i) {
-        for(size_t j = 0; j < game_of_life->collumns; ++j) {
+        for(size_t j = 0; j < game_of_life->columns; ++j) {
             fprintf(fptr, "%hhu ", get_cell_state(game_of_life, i, j));
         }
 
