@@ -1,4 +1,4 @@
-### Conways-supercomputer
+# Conways-supercomputer
 This is an implementation of Conways Game of Life for the Vilnius University HPC supercomputer. It is designed to run with MPI and OpenMP models.
 
 ## Compiling
@@ -15,7 +15,7 @@ mpirun -n 4 parallel_game_of_life -c798 -r1000 -v -sf_test.txt
 ./parallel_game_of_life -c30 -r100 -lf_test.txt -t4 -bs4
 ```
 
-# Program flags
+### Program flags
 -v      Prints each epoch with a delay to stdout
 -r      Number of rows for the grid
 -c      Number of columns for the grid must be (c+2)mod8 === 0
