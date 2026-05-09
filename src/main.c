@@ -1,3 +1,4 @@
+#include <bits/time.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <time.h>
@@ -24,7 +25,7 @@
                    "\nExample (no mpi): ./parallel_game_of_life -c30 -r100 -lf_test.txt -t4 -bs4\n" \
                    "Example2: mpirun -n 4 parallel_game_of_life -c798 -r1000 -v -sf_test.txt\n"
 
-int main(int argc, char* argv[]) {    
+int main(int argc, char* argv[]) {
     // rank of the current node
     int rank;
     // number of nodes
@@ -53,7 +54,7 @@ int main(int argc, char* argv[]) {
         if(strcmp(argv[i], "-v") == 0) {
             verbose = 1;
         }
-        
+
         if(strncmp(argv[i], "-r", 2) == 0) {
             sscanf(argv[i] + 2, "%zu", &rows);
         }
@@ -133,7 +134,7 @@ int main(int argc, char* argv[]) {
         }
         cols += cdiff;
     }
-    
+
     if(rows % num_nodes != 0) {
         if(rank == 0) {
             printf("Warning! %d rows will be added\n", num_nodes - (rows % num_nodes));
@@ -152,7 +153,7 @@ int main(int argc, char* argv[]) {
     if(t_per_node > 1) {
         omp_set_num_threads(t_per_node);
     }
-    
+
     Conways game_of_life;
     init_conways(&game_of_life, rows_per_rank, cols, alive_prob);
 
@@ -167,9 +168,9 @@ int main(int argc, char* argv[]) {
                 return -1;
             }
             for(uint32_t r = 0; r < num_nodes; ++r) {
-                
+
                 memset(buff, 0, game_of_life.total_buff_size);
-                
+
                 for(size_t i = 0; i < rows_per_rank; ++i) {
                     for(size_t j = 0; j < cols; ++j) {
                         uint8_t state = 0;
@@ -210,7 +211,9 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    time_t start = time(NULL);
+    // time_t start = time(NULL);
+    struct timespec start;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
     for(int i = 0; i < num_epochs; ++i) {
         my_top_row = get_row_ptr(&game_of_life, 0);
         if(!my_top_row) {
@@ -225,20 +228,20 @@ int main(int argc, char* argv[]) {
             // send my top row to the upper node
             // receive my ghost top from the same node
             MPI_Sendrecv(my_top_row, bytes_per_row, MPI_UINT8_T, rank - 1, 1,
-            top_ghost, bytes_per_row, MPI_UINT8_T, rank - 1, 2, 
+            top_ghost, bytes_per_row, MPI_UINT8_T, rank - 1, 2,
             MPI_COMM_WORLD, &status);
             update_ghost_top(&game_of_life, top_ghost);
         }
 
         if(rank != num_nodes - 1) {
-            // send my bottom row to the next node 
+            // send my bottom row to the next node
             // receive my ghost bottom (next nodes top)
             MPI_Sendrecv(my_bottom_row, bytes_per_row, MPI_UINT8_T, rank + 1, 2,
-            bottom_ghost, bytes_per_row, MPI_UINT8_T, rank + 1, 1, 
+            bottom_ghost, bytes_per_row, MPI_UINT8_T, rank + 1, 1,
             MPI_COMM_WORLD, &status);
             update_ghost_bottom(&game_of_life, bottom_ghost);
         }
-        
+
         // only the main proccess draws
         if(verbose) {
             if(rank == 0) {
@@ -274,9 +277,12 @@ int main(int argc, char* argv[]) {
         }
     }
     // print the time elapse;
-    time_t end = time(NULL);
+    // time_t end = time(NULL);
+    struct timespec end;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
     if(rank == 0) {
-        printf("%f\n", difftime(end, start));
+        printf("%lld\n", get_elapsed_ns(start, end));
     }
 
     if(savefile) {
@@ -288,7 +294,7 @@ int main(int argc, char* argv[]) {
 
             fprintf(fptr, "%zu %zu %f\n", rows, cols, alive_prob);
 
-            // skip over the ghost row  
+            // skip over the ghost row
             for(size_t j = bytes_per_row; j < game_of_life.total_buff_size - bytes_per_row; j += bytes_per_row) {
                 fdraw_stripe_binary(game_of_life.cells + j, cols, fptr);
             }
@@ -302,7 +308,7 @@ int main(int argc, char* argv[]) {
                     fdraw_stripe_binary(recv_buff + j, cols, fptr);
                 }
             }
-            
+
             fclose(fptr);
         }
         else {

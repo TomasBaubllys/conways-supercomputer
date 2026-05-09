@@ -14,3 +14,7 @@ void wait_ms(size_t milliseconds) {
     clock_t start = clock();
     while(clock() < start + milliseconds) {};
 }
+
+long long get_elapsed_ns(struct timespec start, struct timespec end) {
+    return (end.tv_sec - start.tv_sec) *  1000000000LL + (end.tv_nsec - start.tv_sec);
+}
