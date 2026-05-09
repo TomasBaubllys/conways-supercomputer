@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
     if(bs_size % 8 != 0) {
         size_t bsdiff = 8 - bs_size % 8;
         if(rank == 0) {
-            printf("Warning! block size will be increased by %d\n", bsdiff);
+            printf("Warning! block size will be increased by %ld\n", bsdiff);
         }
         bs_size += bsdiff;
     }
@@ -130,14 +130,14 @@ int main(int argc, char* argv[]) {
     if((cols + 2) % 8 != 0) {
         size_t cdiff = 8 - (cols + 2) % 8;
         if(rank == 0) {
-            printf("Warning! %d columns will be added\n", cdiff);
+            printf("Warning! %ld columns will be added\n", cdiff);
         }
         cols += cdiff;
     }
 
     if(rows % num_nodes != 0) {
         if(rank == 0) {
-            printf("Warning! %d rows will be added\n", num_nodes - (rows % num_nodes));
+            printf("Warning! %ld rows will be added\n", num_nodes - (rows % num_nodes));
         }
         if(rows < num_nodes) {
             rows = num_nodes;
