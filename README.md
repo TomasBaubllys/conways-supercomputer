@@ -45,7 +45,7 @@ The table below provides speedup characteristics, tested on VU MIF HPC cluster
 |2       |1.900             |
 |4       |3.602             |
 |8       |6.697             |
-|16      |13.0117           |
+|16      |13.017            |
 |32      |22.977            |
 |64      |47.107            |
 |128     |90.121            |
