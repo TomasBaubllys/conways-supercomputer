@@ -37,8 +37,8 @@ mpirun -n 4 parallel_game_of_life -c798 -r1000 -v -sf_test.txt
 -h      Displays this message  
 
 ### Speedup results in VU MIF HPC
+The table below provides speedup characteristics, tested on VU MIF HPC cluster
 
-NWorkers,Speedup
 |NWorkers|Speedup           |
 |--------|------------------|
 |1       |1.0               |
