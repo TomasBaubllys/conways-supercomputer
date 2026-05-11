@@ -116,11 +116,71 @@ def merge_csv(file_list: list[str], out_file: str) -> None:
                     if not row: continue
                     writer.writerow([n_workers] + row)
 
+def graph_extra(file_list: list[str]) -> None:
+    data = []
+    
+    for file in file_list:
+        mpi_tasks = extract_numbers(file)
+        # Pagal tavo sąlygą: MPI * Threads = 512
+        threads_per_task = 512 // mpi_tasks
+        
+        try:
+            with open(file, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    time_ns = float(content)
+                    data.append({
+                        "MPI_Tasks": mpi_tasks,
+                        "Threads_per_Task": threads_per_task,
+                        "Time_MS": time_ns / 1e6,
+                        "Label": f"{mpi_tasks}M x {threads_per_task}T"
+                    })
+        except Exception as e:
+            print(f"Error reading file {file}: {e}")
+
+    df = pd.DataFrame(data).sort_values("MPI_Tasks")
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    
+    bars = ax.bar(df['Label'], df['Time_MS'], color='skyblue', edgecolor='navy')
+    
+    for bar in bars:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2, yval, f'{round(yval, 2)} ms', 
+                va='bottom', ha='center', fontweight='bold')
+
+    ax.set_title("Hybrid analysis (512 cores)", fontsize=14)
+    ax.set_xlabel("Config (MPI processes x threads)", fontsize=12)
+    ax.set_ylabel("Exec time (ms)", fontsize=12)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+    
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    fig.savefig("hybrid_analysis.jpg")
+    plt.show()
+    plt.close()
+
+def gen_speedup_table(datafile: str,
+                      outfile: str) -> list[tuple[int, float]]:
+    df = pd.read_csv(datafile)
+    df['Size'] = df['Cols'] * df['Rows']
+    data = df[df['Size'] == df['Size'].max()]
+    data.sort_values('NWorkers', inplace=True)
+    new_frame = pd.DataFrame()
+    new_frame['NWorkers'] = data['NWorkers']
+    new_frame['Speedup'] = [data[data['NWorkers'] == 1]['Times_NS'].values[0] for _ in range(len(data.values))] / data['Times_NS']
+    new_frame.to_csv(outfile, index=False)
+
 if __name__ == "__main__":
     res_files = get_files("../res", "^res[0-9]+.csv$")
-    merge_csv(res_files, "all.csv")
-    
-    # Atliekame pilną analizę
-    graph_time("all.csv")
-    graph_scalability("all.csv")
-    graph_efficiency("all.csv")
+    if res_files:
+        merge_csv(res_files, "all.csv")
+
+        graph_time("all.csv")
+        graph_scalability("all.csv")
+        graph_efficiency("all.csv")
+        gen_speedup_table("all.csv", "speedup.csv")
+
+    rese_files = get_files("../res", "^rese[0-9]+.csv$")
+    if rese_files:
+        graph_extra(rese_files)
